@@ -1,0 +1,127 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated player profile with Ludo Unic stats and power-up inventory.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the owner." },
+        "displayName": { "type": "string", "description": "Player display name." },
+        "trophies": { "type": "integer", "description": "Competitive trophy rating." },
+        "xp": { "type": "integer", "description": "Total earned experience points." },
+        "coins": { "type": "integer", "description": "In-game currency for unlocking power-up charges." },
+        "wins": { "type": "integer", "description": "Total matches won." },
+        "gamesPlayed": { "type": "integer", "description": "Total matches played." },
+        "captures": { "type": "integer", "description": "Total rival pawns captured." },
+        "powerUpsUsed": { "type": "integer", "description": "Total power-ups activated." },
+        "sixesRolled": { "type": "integer", "description": "Total sixes rolled." },
+        "tokensHome": { "type": "integer", "description": "Total tokens moved to home goal." },
+        "turboCount": { "type": "integer", "description": "Turbo Boost power-up charges." },
+        "shieldCount": { "type": "integer", "description": "Shield Aura power-up charges." },
+        "swapCount": { "type": "integer", "description": "Swap Warp power-up charges." },
+        "luckySixCount": { "type": "integer", "description": "Precision Six power-up charges." },
+        "freezeCount": { "type": "integer", "description": "Freeze Trap power-up charges." },
+        "magnetCount": { "type": "integer", "description": "Magnet Pull power-up charges." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp of creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp of last update." }
+      },
+      "required": [
+        "userId", "displayName", "trophies", "xp", "coins", "wins", "gamesPlayed",
+        "captures", "powerUpsUsed", "sixesRolled", "tokensHome",
+        "turboCount", "shieldCount", "swapCount", "luckySixCount", "freezeCount", "magnetCount",
+        "createdAt", "updatedAt"
+      ]
+    },
+    "DailyMission": {
+      "title": "DailyMission",
+      "description": "Per-day mission quest with progress tracking and reward claim state.",
+      "type": "object",
+      "properties": {
+        "missionType": { "type": "string", "description": "Mission category identifier." },
+        "title": { "type": "string", "description": "Short mission title." },
+        "description": { "type": "string", "description": "Mission objective text." },
+        "missionDate": { "type": "string", "description": "Date key YYYY-MM-DD." },
+        "progress": { "type": "integer", "description": "Current objective progress." },
+        "target": { "type": "integer", "description": "Required objective target." },
+        "rewardXp": { "type": "integer", "description": "XP reward on claim." },
+        "rewardCoins": { "type": "integer", "description": "Coin reward on claim." },
+        "claimed": { "type": "boolean", "description": "Whether reward was claimed." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp of creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp of last update." }
+      },
+      "required": [
+        "missionType", "title", "description", "missionDate", "progress",
+        "target", "rewardXp", "rewardCoins", "claimed", "createdAt", "updatedAt"
+      ]
+    },
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "Public player ranking record for the online multiplayer leaderboard.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID." },
+        "displayName": { "type": "string", "description": "Public player name." },
+        "trophies": { "type": "integer", "description": "Competitive trophy rating." },
+        "wins": { "type": "integer", "description": "Total wins." },
+        "gamesPlayed": { "type": "integer", "description": "Total matches played." },
+        "captures": { "type": "integer", "description": "Total captures." },
+        "tier": { "type": "string", "description": "Rank tier badge." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp of creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp of last update." }
+      },
+      "required": [
+        "userId", "displayName", "trophies", "wins", "gamesPlayed", "captures",
+        "tier", "createdAt", "updatedAt"
+      ]
+    },
+    "MatchRoom": {
+      "title": "MatchRoom",
+      "description": "Real-time online multiplayer Ludo Unic room.",
+      "type": "object",
+      "properties": {
+        "hostId": { "type": "string", "description": "Host Firebase Auth UID." },
+        "roomCode": { "type": "string", "description": "Joinable room code." },
+        "status": { "type": "string", "enum": ["WAITING", "ACTIVE", "FINISHED"] },
+        "playerUids": { "type": "array", "description": "List of joined player UIDs." },
+        "playerNames": { "type": "array", "description": "List of joined player names." },
+        "playerColors": { "type": "array", "description": "List of assigned seat colors." },
+        "currentTurnIndex": { "type": "integer", "description": "Active seat index 0..3." },
+        "lastDiceValue": { "type": "integer", "description": "Most recent dice roll 0..6." },
+        "turnPhase": { "type": "string", "enum": ["ROLL", "MOVE", "FINISHED"] },
+        "winnerUid": { "type": "string", "description": "Winner UID when finished." },
+        "tokenPositions": { "type": "array", "description": "16 integer token steps (-1..56)." },
+        "shieldTurns": { "type": "array", "description": "4 integer remaining shield turns." },
+        "frozenTurns": { "type": "array", "description": "4 integer remaining freeze turns." },
+        "orbTiles": { "type": "array", "description": "Up to 4 main-track tile indices with power-up orbs." },
+        "orbTypes": { "type": "array", "description": "Power-up names matching orbTiles." },
+        "lastEventText": { "type": "string", "description": "Human-readable action feed." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp of creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp of last update." }
+      },
+      "required": [
+        "hostId", "roomCode", "status", "playerUids", "playerNames", "playerColors",
+        "currentTurnIndex", "lastDiceValue", "turnPhase", "winnerUid",
+        "tokenPositions", "shieldTurns", "frozenTurns", "orbTiles", "orbTypes",
+        "lastEventText", "createdAt", "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private player profile, wallet, stats, and power-up charges."
+    },
+    "/users/{userId}/missions/{missionId}": {
+      "schema": { "$ref": "#/entities/DailyMission" },
+      "description": "Player daily missions and claim states."
+    },
+    "/leaderboard/{userId}": {
+      "schema": { "$ref": "#/entities/LeaderboardEntry" },
+      "description": "Global online multiplayer leaderboard standings."
+    },
+    "/rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/MatchRoom" },
+      "description": "Real-time online multiplayer match rooms."
+    }
+  }
+}

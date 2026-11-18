@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">Ludo Unic</string>
+    <string name="tagline">Tactical Ludo • Power-Ups • Live Ranks</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="signing_in">Signing in…</string>
+    <string name="nav_arena">Arena</string>
+    <string name="nav_missions">Missions</string>
+    <string name="nav_ranks">Ranks</string>
+    <string name="play_ai_duel">1v1 Tactical Duel</string>
+    <string name="play_ai_arena">4-Player AI Arena</string>
+    <string name="play_pass_play">Pass &amp; Play (4P)</string>
+    <string name="create_online_room">Create Online Room</string>
+    <string name="join_room_hint">Enter 6-char room code</string>
+    <string name="join_room">Join</string>
+    <string name="daily_missions_title">Daily Missions</string>
+    <string name="powerup_armory_title">Power-Up Armory</string>
+    <string name="leaderboard_title">Online Leaderboard</string>
+    <string name="roll_dice">Roll Dice</string>
+    <string name="claim_reward">Claim</string>
+    <string name="claimed_label">Claimed</string>
+    <string name="sign_out">Sign out</string>
+</resources>

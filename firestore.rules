@@ -1,0 +1,288 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny all by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Shared Security Primitives ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    // --- Entity Validation Helpers ---
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40 &&
+             data.trophies is int && data.trophies >= 0 && data.trophies <= 1000000 &&
+             data.xp is int && data.xp >= 0 && data.xp <= 10000000 &&
+             data.coins is int && data.coins >= 0 && data.coins <= 10000000 &&
+             data.wins is int && data.wins >= 0 && data.wins <= 100000 &&
+             data.gamesPlayed is int && data.gamesPlayed >= 0 && data.gamesPlayed <= 100000 &&
+             data.captures is int && data.captures >= 0 && data.captures <= 1000000 &&
+             data.powerUpsUsed is int && data.powerUpsUsed >= 0 && data.powerUpsUsed <= 1000000 &&
+             data.sixesRolled is int && data.sixesRolled >= 0 && data.sixesRolled <= 1000000 &&
+             data.tokensHome is int && data.tokensHome >= 0 && data.tokensHome <= 1000000 &&
+             data.turboCount is int && data.turboCount >= 0 && data.turboCount <= 999 &&
+             data.shieldCount is int && data.shieldCount >= 0 && data.shieldCount <= 999 &&
+             data.swapCount is int && data.swapCount >= 0 && data.swapCount <= 999 &&
+             data.luckySixCount is int && data.luckySixCount >= 0 && data.luckySixCount <= 999 &&
+             data.freezeCount is int && data.freezeCount >= 0 && data.freezeCount <= 999 &&
+             data.magnetCount is int && data.magnetCount >= 0 && data.magnetCount <= 999;
+    }
+
+    function isValidDailyMission(data) {
+      return data.missionType in ['PLAY_MATCHES', 'CAPTURE_TOKENS', 'USE_POWERUPS', 'TOKENS_HOME', 'ROLL_SIXES'] &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 60 &&
+             data.description is string && data.description.size() >= 1 && data.description.size() <= 140 &&
+             data.missionDate is string && data.missionDate.size() == 10 &&
+             data.progress is int && data.progress >= 0 && data.progress <= 1000 &&
+             data.target is int && data.target >= 1 && data.target <= 100 &&
+             data.rewardXp is int && data.rewardXp >= 1 && data.rewardXp <= 5000 &&
+             data.rewardCoins is int && data.rewardCoins >= 1 && data.rewardCoins <= 5000 &&
+             data.claimed is bool;
+    }
+
+    function isValidLeaderboardEntry(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40 &&
+             data.trophies is int && data.trophies >= 0 && data.trophies <= 1000000 &&
+             data.wins is int && data.wins >= 0 && data.wins <= 100000 &&
+             data.gamesPlayed is int && data.gamesPlayed >= 0 && data.gamesPlayed <= 100000 &&
+             data.captures is int && data.captures >= 0 && data.captures <= 1000000 &&
+             data.tier in ['Bronze', 'Silver', 'Gold', 'Platinum', 'Unic Master'];
+    }
+
+    function isValidMatchRoom(data) {
+      return data.hostId is string && data.hostId.size() >= 1 && data.hostId.size() <= 128 &&
+             data.roomCode is string && data.roomCode.size() >= 4 && data.roomCode.size() <= 12 &&
+             data.status in ['WAITING', 'ACTIVE', 'FINISHED'] &&
+             data.playerUids is list && data.playerUids.size() >= 1 && data.playerUids.size() <= 4 &&
+             data.playerNames is list && data.playerNames.size() == data.playerUids.size() &&
+             data.playerColors is list && data.playerColors.size() == data.playerUids.size() &&
+             data.currentTurnIndex is int && data.currentTurnIndex >= 0 && data.currentTurnIndex <= 3 &&
+             data.lastDiceValue is int && data.lastDiceValue >= 0 && data.lastDiceValue <= 6 &&
+             data.turnPhase in ['ROLL', 'MOVE', 'FINISHED'] &&
+             data.winnerUid is string && data.winnerUid.size() <= 128 &&
+             data.tokenPositions is list && data.tokenPositions.size() == 16 &&
+             data.shieldTurns is list && data.shieldTurns.size() == 4 &&
+             data.frozenTurns is list && data.frozenTurns.size() == 4 &&
+             data.orbTiles is list && data.orbTiles.size() <= 4 &&
+             data.orbTypes is list && data.orbTypes.size() == data.orbTiles.size() &&
+             data.lastEventText is string && data.lastEventText.size() <= 180;
+    }
+
+    // --- 1. User Profiles ---
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isOwner(userId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'displayName', 'trophies', 'xp', 'coins', 'wins', 'gamesPlayed',
+                         'captures', 'powerUpsUsed', 'sixesRolled', 'tokensHome',
+                         'turboCount', 'shieldCount', 'swapCount', 'luckySixCount', 'freezeCount', 'magnetCount',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'trophies', 'xp', 'coins', 'wins', 'gamesPlayed',
+                         'captures', 'powerUpsUsed', 'sixesRolled', 'tokensHome',
+                         'turboCount', 'shieldCount', 'swapCount', 'luckySixCount', 'freezeCount', 'magnetCount',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidTimestamp(incoming().createdAt) &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isOwner(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName', 'trophies', 'xp', 'coins', 'wins', 'gamesPlayed',
+                         'captures', 'powerUpsUsed', 'sixesRolled', 'tokensHome',
+                         'turboCount', 'shieldCount', 'swapCount', 'luckySixCount', 'freezeCount', 'magnetCount',
+                         'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && isValidId(userId) && isOwner(userId);
+
+      // --- 2. Daily Missions Subcollection ---
+      match /missions/{missionId} {
+        allow get: if isSignedIn() && isValidId(missionId) && isOwner(userId);
+        allow list: if isSignedIn() && isOwner(userId);
+
+        allow create: if isSignedIn() &&
+                         isValidId(missionId) &&
+                         isOwner(userId) &&
+                         incoming().keys().hasAll([
+                           'missionType', 'title', 'description', 'missionDate', 'progress',
+                           'target', 'rewardXp', 'rewardCoins', 'claimed', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'missionType', 'title', 'description', 'missionDate', 'progress',
+                           'target', 'rewardXp', 'rewardCoins', 'claimed', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidTimestamp(incoming().createdAt) &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidDailyMission(incoming());
+
+        allow update: if isSignedIn() &&
+                         isValidId(missionId) &&
+                         isOwner(userId) &&
+                         isValidDailyMission(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().missionType == existing().missionType &&
+                         incoming().missionDate == existing().missionDate &&
+                         incoming().target == existing().target &&
+                         incoming().rewardXp == existing().rewardXp &&
+                         incoming().rewardCoins == existing().rewardCoins &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         (
+                           (existing().claimed == false &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['progress', 'updatedAt'])) ||
+                           (existing().claimed == false &&
+                            incoming().claimed == true &&
+                            incoming().progress >= existing().target &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['claimed', 'updatedAt']))
+                         );
+
+        allow delete: if isSignedIn() && isValidId(missionId) && isOwner(userId);
+      }
+    }
+
+    // --- 3. Online Multiplayer Leaderboard ---
+    match /leaderboard/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn() && resource.data.trophies >= 0;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isOwner(userId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'displayName', 'trophies', 'wins', 'gamesPlayed', 'captures',
+                         'tier', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'trophies', 'wins', 'gamesPlayed', 'captures',
+                         'tier', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidTimestamp(incoming().createdAt) &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       isValidLeaderboardEntry(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isOwner(userId) &&
+                       isValidLeaderboardEntry(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName', 'trophies', 'wins', 'gamesPlayed', 'captures', 'tier', 'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && isValidId(userId) && isOwner(userId);
+    }
+
+    // --- 4. Online Multiplayer Match Rooms ---
+    match /rooms/{roomId} {
+      allow get: if isSignedIn() && isValidId(roomId) &&
+                    (existing().status == 'WAITING' || request.auth.uid in existing().playerUids);
+
+      allow list: if isSignedIn() &&
+                     (resource.data.status == 'WAITING' || request.auth.uid in resource.data.playerUids);
+
+      allow create: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       incoming().hostId == request.auth.uid &&
+                       request.auth.uid in incoming().playerUids &&
+                       incoming().status == 'WAITING' &&
+                       incoming().keys().hasAll([
+                         'hostId', 'roomCode', 'status', 'playerUids', 'playerNames', 'playerColors',
+                         'currentTurnIndex', 'lastDiceValue', 'turnPhase', 'winnerUid',
+                         'tokenPositions', 'shieldTurns', 'frozenTurns', 'orbTiles', 'orbTypes',
+                         'lastEventText', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'hostId', 'roomCode', 'status', 'playerUids', 'playerNames', 'playerColors',
+                         'currentTurnIndex', 'lastDiceValue', 'turnPhase', 'winnerUid',
+                         'tokenPositions', 'shieldTurns', 'frozenTurns', 'orbTiles', 'orbTypes',
+                         'lastEventText', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidTimestamp(incoming().createdAt) &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       isValidMatchRoom(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       existing().status != 'FINISHED' &&
+                       isValidMatchRoom(incoming()) &&
+                       incoming().hostId == existing().hostId &&
+                       incoming().roomCode == existing().roomCode &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       (
+                         // Action 1: Join open waiting room
+                         (existing().status == 'WAITING' &&
+                          incoming().status == 'WAITING' &&
+                          !(request.auth.uid in existing().playerUids) &&
+                          request.auth.uid in incoming().playerUids &&
+                          existing().playerUids.size() < 4 &&
+                          incoming().playerUids.size() == existing().playerUids.size() + 1 &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['playerUids', 'playerNames', 'playerColors', 'updatedAt'])) ||
+                         // Action 2: Host starts waiting match
+                         (existing().status == 'WAITING' &&
+                          existing().hostId == request.auth.uid &&
+                          incoming().status == 'ACTIVE' &&
+                          existing().playerUids.size() >= 2 &&
+                          incoming().diff(existing()).affectedKeys().hasOnly([
+                            'status', 'currentTurnIndex', 'turnPhase', 'orbTiles', 'orbTypes', 'lastEventText', 'updatedAt'
+                          ])) ||
+                         // Action 3: Active participant submits turn roll/move/power-up or finishes match
+                         (existing().status == 'ACTIVE' &&
+                          request.auth.uid in existing().playerUids &&
+                          incoming().status in ['ACTIVE', 'FINISHED'] &&
+                          incoming().diff(existing()).affectedKeys().hasOnly([
+                            'status', 'currentTurnIndex', 'lastDiceValue', 'turnPhase', 'winnerUid',
+                            'tokenPositions', 'shieldTurns', 'frozenTurns', 'orbTiles', 'orbTypes',
+                            'lastEventText', 'updatedAt'
+                          ]))
+                       );
+
+      allow delete: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       existing().hostId == request.auth.uid &&
+                       existing().status == 'WAITING';
+    }
+  }
+}
